@@ -87,13 +87,6 @@ graph TD
 ```
 # 3. Dengan menggunakan Docker / Docker Compose, buatlah streaming replication di PostgreSQL yang bisa menjelaskan sinkronisasi. Tulislah langkah-langkah pengerjaannya dan buat penjelasan secukupnya.
 
-Baik — berikut **terjemahan lengkap ke Bahasa Indonesia**, **tanpa mengubah bagian kode sama sekali**.
-Semua kode, perintah, dan konfigurasi dibiarkan **apa adanya**.
-
----
-
-# Terjemahan
-
 **Langkah Pertama**
 Mulailah dengan membuat folder terpisah untuk menyimpan docker file dan data PostgreSQL:
 
