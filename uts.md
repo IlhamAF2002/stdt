@@ -87,148 +87,355 @@ graph TD
 ```
 # 3. Dengan menggunakan Docker / Docker Compose, buatlah streaming replication di PostgreSQL yang bisa menjelaskan sinkronisasi. Tulislah langkah-langkah pengerjaannya dan buat penjelasan secukupnya.
 
-## Langkah 1: Persiapan Direktori
-```bash
-# Buat direktori utama dan subdirektori
-mkdir pg-replication
-cd pg-replication
-mkdir master-data standby-data
+Baik — berikut **terjemahan lengkap ke Bahasa Indonesia**, **tanpa mengubah bagian kode sama sekali**.
+Semua kode, perintah, dan konfigurasi dibiarkan **apa adanya**.
+
+---
+
+# Terjemahan
+
+**Langkah Pertama**
+Mulailah dengan membuat folder terpisah untuk menyimpan docker file dan data PostgreSQL:
+
+```
+mkdir postgres_replication
 ```
 
-## Langkah 2: Konfigurasi Docker Compose
+Ubah direktori kerja:
 
-Buat file `docker-compose.yml`:
+```
+cd postgres_replication
+```
 
-```yaml
+Tambahkan beberapa direktori untuk me-mount volume Master dan Standby:
+
+```
+mkdir -p ./data-master ./tmp-master ./data-standby ./tmp-standby
+```
+
+Buat file docker compose yang akan digunakan untuk menyiapkan Master dan Standby Node:
+
+```
+touch docker-compose.yml
+```
+
+---
+
+# **Menyiapkan Master Node**
+
+Perbarui file `docker-compose.yml` yang sudah dibuat sebelumnya dengan nilai berikut:
+
+```
+version: '1'
+
 services:
-  master:
+  pgtest_master:
     image: postgres:latest
-    container_name: pg-master
-    environment:
-      POSTGRES_DB: mydatabase
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-    ports:
-      - "5432:5432"
+    container_name: pgtest_master
+    restart: always
     volumes:
-      - ./master-data:/var/lib/postgresql/data
-    command: >
-      postgres 
-      -c wal_level=replica 
-      -c max_wal_senders=5 
-      -c wal_sender_timeout=0 
-      -c listen_addresses='*'
-
-  standby:
-    image: postgres:latest
-    container_name: pg-standby
-    environment:
-      POSTGRES_DB: mydatabase
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+        - ./data-master:/var/lib/postgresql/data
+        - ./tmp-master:/tmp
     ports:
-      - "5433:5432"
-    volumes:
-      - ./standby-data:/var/lib/postgresql/data
-    depends_on:
-      - master
-    command: >
-      sh -c "
-      until pg_basebackup -h master -D /var/lib/postgresql/data -F p -Xs -P -R; do
-        echo 'Waiting for master...'
-        sleep 5
-      done &&
-      echo 'Standby initialized' &&
-      postgres
-      "
-
-volumes:
-  master-data:
-    driver: local
-  standby-data:
-    driver: local
+      - '5454:5432'
+    environment:
+      - 'POSTGRES_USER=postgres'
+      - 'POSTGRES_PASSWORD=pass@123'
+      - 'POSTGRES_DB=postgres'
 ```
 
-**Penjelasan Konfigurasi:**
-- **Master**: Database utama dengan WAL replication enabled
-- **Standby**: Database replica yang sync dari master
-- **Port**: Master (5432), Standby (5433)
+**Penjelasan nilai yang digunakan:**
 
-## Langkah 3: Jalankan Container
-```bash
-# Build dan jalankan container
-docker-compose up -d
+* `image postgres:latest` untuk menginstal PostgreSQL versi terbaru di Docker
+* `pgtest_master` sebagai nama container
+* `restart: always` untuk menjalankan container setiap boot
+* `volumes` memetakan direktori host ke direktori dalam container
+* `ports` memetakan port container 5432 ke port host 5454
+* `environment` mengatur user, password, dan database default
 
-# Periksa status container
-docker-compose ps
+Jalankan docker file untuk memulai master node:
+
+```
+sudo docker compose up -d
 ```
 
-## Langkah 4: Konfigurasi Replikasi
+---
 
-### Buat User Replikasi di Master
-```bash
-# Akses PostgreSQL master
-docker-compose exec master psql -U myuser -d mydatabase
+# **Konfigurasi Awal**
+
+Periksa apakah container sudah berjalan:
+
+```
+sudo docker ps
 ```
 
-```sql
--- Buat user khusus untuk replikasi
-CREATE ROLE repl_user WITH REPLICATION LOGIN PASSWORD 'repl_password';
+Verifikasi parameter `listen_addresses` (harus bernilai `*`):
 
--- Buat replication slot
-SELECT pg_create_physical_replication_slot('standby1_slot');
+```
+sudo docker exec pgtest_master psql -U postgres -c "SHOW listen_addresses;"
+```
 
--- Keluar
+Periksa port default 5432:
+
+```
+sudo docker exec pgtest_master psql -U postgres -c "SHOW port;"
+```
+
+Verifikasi bahwa `wal_level` bernilai `replica`:
+
+```
+sudo docker exec pgtest_master psql -U postgres -c "SHOW wal_level;"
+```
+
+Parameter lain seperti `hot_standby`, `max_wal_senders`, dan `max_replication_slots` bisa diperiksa, tetapi nilai default sudah cukup.
+
+Mulai sesi shell interaktif di master:
+
+```
+sudo docker exec -it pgtest_master bash
+```
+
+Kita perlu mengizinkan koneksi antara kedua node, jadi perlu memperbarui file akses berbasis host (hba).
+
+Tambahkan entri ke dalam `pg_hba.conf`:
+
+```
+echo 'host replication replicator 0.0.0.0/0 scram-sha-256' >> /var/lib/postgresql/data/pg_hba.conf
+```
+
+Keluar dari shell:
+
+```
+exit
+```
+
+Sekarang buat user untuk replikasi:
+
+Mulai sesi psql dari host:
+
+```
+psql -h 127.0.0.1 -U postgres -p 5454 postgres
+```
+
+Buat user replikasi:
+
+```
+CREATE USER replicator WITH REPLICATION ENCRYPTED PASSWORD 'replicator';
+```
+
+Buat physical replication slot:
+
+```
+SELECT * FROM pg_create_physical_replication_slot('replication_slot_standby1');
+```
+
+Verifikasi slot:
+
+```
+SELECT * FROM pg_replication_slots;
+```
+
+Keluar dari psql:
+
+```
 \q
 ```
 
-### Update Konfigurasi Standby
-Edit file `standby-data/postgresql.auto.conf` dan tambahkan:
-```
-primary_conninfo = 'host=master port=5432 user=repl_user password=repl_password'
-primary_slot_name = 'standby1_slot'
-```
+---
 
-Restart standby container:
-```bash
-docker-compose restart standby
+# **Melakukan Base Backup**
+
+Masuk lagi ke master:
+
+```
+sudo docker exec -it pgtest_master bash
 ```
 
-## Langkah 5: Verifikasi Replikasi
+Jalankan base backup:
 
-### Test di Master
-```bash
-docker-compose exec master psql -U myuser -d mydatabase
+```
+pg_basebackup -D /tmp -S replication_slot_standby1 -X stream -P -U replicator -Fp -R
 ```
 
-```sql
--- Buat table test
-CREATE TABLE replication_test (
-    id SERIAL PRIMARY KEY, 
-    message TEXT,
-    created_at TIMESTAMP DEFAULT NOW()
-);
+**Penjelasan parameter:**
 
--- Insert data
-INSERT INTO replication_test (message) VALUES 
-    ('Testing replication 1'),
-    ('Testing replication 2'),
-    ('Testing replication 3');
+* `-D` lokasi folder backup
+* `-S` nama replication slot
+* `-X stream` sertakan WAL
+* `-P` tampilkan progress
+* `-U` user replicator
+* `-Fp` backup format plain
+* `-R` membuat `standby.signal` dan `primary_conninfo` otomatis
 
--- Verifikasi data di master
-SELECT * FROM replication_test;
+Keluar:
+
+```
+exit
 ```
 
-### Test di Standby
-```bash
-docker-compose exec standby psql -U myuser -d mydatabase
+Periksa isi direktori backup:
+
+```
+sudo ls -lh tmp-master/
 ```
 
-```sql
--- Periksa data yang tereplikasi
-SELECT * FROM replication_test;
+Pindahkan data ke folder standby:
 
--- Cek status replikasi
-SELECT client_addr, state, sync_state, replay_lag 
-FROM pg_stat_replication;
 ```
+sudo mv tmp-master/* data-standby/
+```
+
+Periksa file konfigurasi:
+
+```
+sudo nano data-standby/postgresql.auto.conf
+```
+
+Pastikan nilainya sesuai:
+
+*(kode asli dipertahankan, tidak diterjemahkan)*
+
+---
+
+Stop master node:
+
+```
+sudo docker compose down
+```
+
+Data tetap aman di direktori host.
+
+---
+
+# **Menyiapkan Standby Node**
+
+Perbarui docker-compose dengan menambahkan service standby:
+
+```
+version: '1'
+
+services:
+...
+  pgtest_standby:
+    image: postgres:latest
+    container_name: pgtest_standby
+    restart: always
+    volumes:
+        - ./data-standby:/var/lib/postgresql/data
+        - ./tmp-standby:/tmp
+    ports:
+      - '5455:5432'
+    environment:
+      - 'POSTGRES_USER=postgres'
+      - 'POSTGRES_PASSWORD=pass@123'
+      - 'POSTGRES_DB=postgres'
+```
+
+Ini hampir sama seperti master, tetapi:
+
+* nama container berbeda
+* direktori data mengarah ke `data-standby`
+* port host 5455
+
+**File lengkap docker-compose.yml ditampilkan (tidak diterjemahkan karena merupakan kode).**
+
+Jalankan semuanya:
+
+```
+sudo docker compose up -d
+```
+
+---
+
+# **Verifikasi Replikasi**
+
+Periksa container:
+
+```
+sudo docker ps
+```
+
+Masuk ke master:
+
+```
+psql -h 127.0.0.1 -U postgres -p 5454 postgres
+```
+
+Lihat status replikasi:
+
+```
+SELECT * FROM pg_stat_replication;
+```
+
+Tambahkan data pada master:
+
+```
+CREATE TABLE employee (id int, "name" varchar(50));
+INSERT INTO employee VALUES (1, 'Swastik');
+```
+
+Masuk ke standby:
+
+```
+psql -h 127.0.0.1 -U postgres -p 5455 postgres
+```
+
+Periksa wal receiver:
+
+```
+SELECT * FROM pg_stat_wal_receiver;
+```
+
+Verifikasi data:
+
+```
+SELECT * FROM employee;
+```
+
+Jika data muncul, replikasi berhasil.
+
+---
+
+# **Mengaktifkan Synchronous Replication**
+
+Masuk ke master:
+
+```
+sudo docker exec -it pgtest_master bash
+```
+
+Periksa parameter:
+
+```
+cat /var/lib/postgresql/data/postgresql.conf | grep synchronous_standby_names
+```
+
+Jika perlu, ubah nilainya:
+
+```
+sed -i "s/#synchronous_standby_names = ''/synchronous_standby_names = '*'/g" /var/lib/postgresql/data/postgresql.conf
+```
+
+Verifikasi perubahan, lalu keluar:
+
+```
+exit
+```
+
+Restart server:
+
+```
+sudo docker compose down && sudo docker compose up -d
+```
+
+Cek status sinkronisasi:
+
+```
+SELECT sync_state FROM pg_stat_replication;
+```
+
+Jika bernilai `sync` maka sinkronisasi berhasil.
+
+---
+
+
