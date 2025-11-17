@@ -35,7 +35,7 @@ GraphQL berfungsi sebagai lapisan abstraksi yang menyederhanakan komunikasi anta
 GraphQL resolver bertindak sebagai orchestrator yang mengelola kompleksitas IPC - menentukan service mana yang perlu dipanggil, menggunakan protokol apa (REST, gRPC, dll), dan mengaggregasi hasilnya. Client cukup mengirimkan query tunggal yang mendefinisikan kebutuhan data, sementara GraphQL yang menangani multiple IPC calls ke berbagai services.
 
 Keuntungan utamanya adalah efisiensi dan simplikasi. Client terhindar dari over-fetching dan under-fetching data, serta tidak perlu memahami kompleksitas arsitektur microservices di backend. Di sisi lain, tim backend dapat mengembangkan services secara independen selama GraphQL schema tetap konsisten, menciptakan sistem terdistribusi yang lebih maintainable dan scalable.
-graph TD
+'''graph TD
     GraphQL[GraphQL Layer] --> HTTP[HTTP/REST]
     GraphQL --> gRPC[gRPC]
     GraphQL --> Message[Message Queue]
@@ -44,5 +44,5 @@ graph TD
     gRPC --> Service2[Microservice 2]
     Message --> Service3[Microservice 3]
     DB --> Service4[Database Service]
-
+'''
 
