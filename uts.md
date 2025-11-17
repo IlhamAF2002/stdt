@@ -36,17 +36,53 @@ GraphQL resolver bertindak sebagai orchestrator yang mengelola kompleksitas IPC 
 
 Keuntungan utamanya adalah efisiensi dan simplikasi. Client terhindar dari over-fetching dan under-fetching data, serta tidak perlu memahami kompleksitas arsitektur microservices di backend. Di sisi lain, tim backend dapat mengembangkan services secara independen selama GraphQL schema tetap konsisten, menciptakan sistem terdistribusi yang lebih maintainable dan scalable.
 
+# Arsitektur GraphQL dalam Sistem Terdistribusi
+
+## Diagram Arsitektur GraphQL sebagai API Gateway
+
+```mermaid
 graph TD
-    Client[Client] --> GraphQL[GraphQL Gateway]
-
-    GraphQL --> HTTP[HTTP / REST]
-    GraphQL --> gRPC[gRPC]
+    %% Client Layer
+    Web[Web Client] --> GraphQL
+    Mobile[Mobile App] --> GraphQL
+    Desktop[Desktop Client] --> GraphQL
+    
+    %% GraphQL Layer
+    GraphQL[GraphQL API Gateway]
+    
+    %% Protocol Layer
+    GraphQL --> HTTP[HTTP/REST]
+    GraphQL --> gRPC[gRPC Protocol]
     GraphQL --> Message[Message Queue]
-    GraphQL --> DB[Database Direct]
-
-    HTTP --> Service1[Microservice 1]
-    gRPC --> Service2[Microservice 2]
-    Message --> Service3[Microservice 3]
-    DB --> Service4[Database Service]
-
-
+    GraphQL --> DB[Direct DB Access]
+    
+    %% Microservices Layer
+    HTTP --> AuthService[Auth Service]
+    HTTP --> UserService[User Service]
+    gRPC --> ProductService[Product Service]
+    gRPC --> InventoryService[Inventory Service]
+    Message --> OrderService[Order Service]
+    Message --> PaymentService[Payment Service]
+    DB --> ReportService[Report Service]
+    
+    %% Database Layer
+    AuthService --> AuthDB[(Auth DB)]
+    UserService --> UserDB[(User DB)]
+    ProductService --> ProductDB[(Product DB)]
+    InventoryService --> InventoryDB[(Inventory DB)]
+    OrderService --> OrderDB[(Order DB)]
+    PaymentService --> PaymentDB[(Payment DB)]
+    ReportService --> DataWarehouse[(Data Warehouse)]
+    
+    %% Styling
+    classDef clientStyle fill:#4a90e2,color:white
+    classDef graphqlStyle fill:#e535ab,color:white
+    classDef protocolStyle fill:#007ec6,color:white
+    classDef serviceStyle fill:#00a950,color:white
+    classDef dbStyle fill:#ff6b35,color:white
+    
+    class Web,Mobile,Desktop clientStyle
+    class GraphQL graphqlStyle
+    class HTTP,gRPC,Message,DB protocolStyle
+    class AuthService,UserService,ProductService,InventoryService,OrderService,PaymentService,ReportService serviceStyle
+    class AuthDB,UserDB,ProductDB,InventoryDB,OrderDB,PaymentDB,DataWarehouse dbStyle
