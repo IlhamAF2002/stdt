@@ -37,7 +37,15 @@ GraphQL resolver bertindak sebagai orchestrator yang mengelola kompleksitas IPC 
 Keuntungan utamanya adalah efisiensi dan simplikasi. Client terhindar dari over-fetching dan under-fetching data, serta tidak perlu memahami kompleksitas arsitektur microservices di backend. Di sisi lain, tim backend dapat mengembangkan services secara independen selama GraphQL schema tetap konsisten, menciptakan sistem terdistribusi yang lebih maintainable dan scalable.
 
 # Arsitektur GraphQL dalam Sistem Terdistribusi
-
+graph LR
+    Client[Client Application] --> GraphQL[GraphQL Gateway]
+    
+    subgraph Backend Services
+        GraphQL --> REST[REST Service]
+        GraphQL --> gRPC[gRPC Service]
+        GraphQL --> DB[Database Service]
+        GraphQL --> Legacy[Legacy System]
+    end
 ## Diagram Arsitektur GraphQL sebagai API Gateway
 
 ```mermaid
