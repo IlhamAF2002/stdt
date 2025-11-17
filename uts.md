@@ -27,7 +27,3 @@ Manajemen Stok (CP): Layanan ini bertanggung jawab atas jumlah stok produk. Keti
 
 Keranjang Belanja (AP): Layanan ini menangani keranjang belanja pengguna. Jika terjadi partisi, layanan tetap tersedia dan membiarkan pengguna menambah atau menghapus item dari keranjang mereka. Data keranjang sementara disimpan secara lokal di node yang terpisah. Akibatnya, untuk sementara waktu, jika pengguna mengakses dari perangkat yang berbeda (yang mungkin terhubung ke node yang berbeda), mereka mungkin melihat keranjang yang sedikit tidak sinkron. Namun, setelah partisi jaringan teratasi, sistem akan menyinkronkan semua perubahan.
 
----
-
-Kalau mau, saya juga bisa menghapus karakter lain atau mengubah format keseluruhan.
-
